@@ -686,7 +686,9 @@
   var SHOW_AFTER = 8;    // px of cumulative upward scroll before showing again
   var TOP_ZONE = 64;     // always visible within this much of the top
   var BOTTOM_KEEP = 80;  // never hide this close to the end of the document
-  var COOLDOWN = 220;    // ms after a flip before another one may happen
+  var COOLDOWN = 300;    // ms after a flip before another one may happen;
+                         // must stay >= --speed-collapse or a flip can land
+                         // mid-transition and restart it, which reads as a jerk
 
   var lastY = 0, downRun = 0, upRun = 0, lastFlip = 0;
   var ticking = false, filtersHidden = false;
@@ -700,6 +702,7 @@
     if (!filtersHidden && !animating) measureLayout();   // refresh baselines first
     filtersHidden = hide;
     lastFlip = Date.now();
+    downRun = upRun = 0;        // start each state with clean accumulators
     animating = true;
     document.documentElement.classList.toggle('filters-hidden', hide);
     applyFiltersHeight();
@@ -718,16 +721,21 @@
     lastY = y;
     if (dy === 0) return;
 
+    if (y <= TOP_ZONE) { downRun = upRun = 0; setFiltersHidden(false); return; }
+
+    /* No flip while the previous one is still animating — and crucially, do not
+       accumulate movement during it either. Collapsing the box shortens the
+       document, and the browser's scroll anchoring compensates by moving the
+       scroll position, which arrives here as a large phantom delta in the
+       opposite direction. Counting it would fire a spurious flip once the
+       cooldown lifted. */
+    if (Date.now() - lastFlip < COOLDOWN) return;
+
     /* Accumulate per direction, resetting the other. Momentum scrolling and
        trackpads emit mixed-sign deltas, and reacting to a single stray pixel is
        what made this flicker. */
     if (dy > 0) { downRun += dy; upRun = 0; }
     else { upRun -= dy; downRun = 0; }
-
-    if (y <= TOP_ZONE) { downRun = 0; setFiltersHidden(false); return; }
-
-    // No flip while the previous one is still animating.
-    if (Date.now() - lastFlip < COOLDOWN) return;
 
     if (upRun >= SHOW_AFTER) { setFiltersHidden(false); return; }
     if (downRun < HIDE_AFTER) return;

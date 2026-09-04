@@ -48,9 +48,11 @@ them straight back. Both are cumulative and per direction, so the jitter in
 a momentum scroll cannot make them flicker. It stays visible near the top of the page
 whatever the direction, so it never flickers while you are barely
 scrolling, and they do not hide right at the end of the list. The rows
-animate out at the same 150ms used elsewhere, collapsing their height
-rather than only sliding, so the sticky day headers move up to close the
-gap instead of leaving an empty band. Together they give back about 125px
+animate out over 280ms on a decelerating curve, slower than the 150ms used
+for hover feedback because they are a much taller element, collapsing their
+height and sliding slightly rather than only one or the other, so the
+sticky day headers move up to close the gap instead of leaving an empty
+band. Together they give back about 125px
 of a phone screen. Under prefers-reduced-motion the rows simply stay
 visible and nothing animates. Desktop and tablet are unaffected: both rows
 are always visible there.

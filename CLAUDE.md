@@ -155,18 +155,43 @@ phone screen comes back. Do not give either row its own toggle or threshold.
 | `SHOW_AFTER` | `8` | px of **cumulative** upward scroll before showing again |
 | `TOP_ZONE` | `64` | always visible within this distance of the top |
 | `BOTTOM_KEEP` | `80` | never hide this close to the end of the document |
-| `COOLDOWN` | `220` | ms after a flip before another one may happen |
+| `COOLDOWN` | `300` | ms after a flip before another one may happen |
 
 Hiding is deliberately more reluctant than showing; do not make them symmetric.
 Both runs **accumulate per direction and reset the other** — a single stray pixel
 must never flip the state. Momentum scrolling and trackpads emit mixed-sign
 deltas, so an earlier version that showed the rows on any 2px upward delta
 flickered badly in real use. `COOLDOWN` then stops a second flip landing while
-the first is still animating. Lowering `SHOW_AFTER` toward zero or removing the
-cooldown brings the sputter straight back.
+the first is still animating, so it **must stay at or above
+`--speed-collapse`** — raise the animation duration without raising it and a
+flip can interrupt and restart the transition, which reads as a jerk.
+
+Deltas that arrive *during* the cooldown are discarded rather than accumulated.
+Collapsing the box shortens the document and the browser's scroll anchoring
+compensates by moving the scroll position — roughly the collapsed height, in the
+opposite direction, arriving here as one large phantom delta. Counting it would
+fire a spurious flip the moment the cooldown lifted. The accumulators are also
+cleared on every flip. Lowering `SHOW_AFTER` toward zero, removing the cooldown,
+or accumulating through it all bring the sputter straight back.
 `BOTTOM_KEEP` is not cosmetic: collapsing the row shortens the document, and at
 the very bottom the browser clamps the scroll position, which reads as an upward
 scroll and would oscillate. Removing that guard reintroduces the oscillation.
+
+**Timing.** The collapse does not use the site-wide `--speed` / `--ease`, which
+stay at 150ms for button and hover feedback. It has its own pair, because it
+moves a ~125px block rather than a button:
+
+```css
+--speed-collapse: 280ms;
+--ease-collapse: cubic-bezier(0.4, 0, 0.2, 1);
+```
+
+Every part of the movement shares them — the box's `max-height` and `opacity`,
+the `transform: translateY(-8px)` slide on `.chips-wrap` and `.dates`, and
+`.day-head`'s `top`. If they drift apart the pieces arrive at different moments
+and the whole thing reads as broken. The slide is transform-only and therefore
+free on the compositor; it exists so the rows read as leaving rather than being
+cropped away.
 
 **The filter rows and the sticky day headers are coupled. Do not decouple them.**
 The single `#filters` box collapses its `max-height` to zero rather than only
@@ -178,7 +203,8 @@ Four things make that collapse smooth rather than sputtery. All four matter:
    element. When they were two siblings with separate `max-height` values, they
    started and finished at different moments and the collapse looked broken.
 2. **Exact height, no slack.** `app.js` measures the open height and writes it
-   inline (`style.maxHeight`), so the 150ms is spent entirely on visible pixels.
+   inline (`style.maxHeight`), so the duration is spent entirely on visible
+   pixels.
    A generous round-number `max-height` wastes part of the duration animating
    through empty space, which reads as a stutter then a jump. The inline value is
    **cleared above the mobile breakpoint** — inline styles ignore media queries,
@@ -189,7 +215,7 @@ Four things make that collapse smooth rather than sputtery. All four matter:
    feedback loop is a sputter generator; the property breaks it.
 4. **No per-frame measuring.** `--h-stick` is written **once per toggle** from
    cached endpoints (`stickExpanded`, `filtersH`), and `.day-head` transitions its
-   own `top` over the same 150ms so the headers glide in step. The earlier version
+   own `top` over the same duration so the headers glide in step. The earlier version
    re-measured on every animation frame through the `ResizeObserver`, forcing
    synchronous layout of the whole list mid-scroll. The observer is now skipped
    while `animating` or hidden, and only refreshes the cached baselines when the

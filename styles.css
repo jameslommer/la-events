@@ -35,6 +35,10 @@
   --radius-pill: 999px;
   --speed: 150ms;
   --ease: cubic-bezier(0.2, 0.6, 0.3, 1);
+  /* The filter collapse is a much taller move than a button hover, so it gets
+     its own longer duration and a gentler decelerating curve. */
+  --speed-collapse: 280ms;
+  --ease-collapse: cubic-bezier(0.4, 0, 0.2, 1);
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
           'Helvetica Neue', Arial, sans-serif;
   --wrap: 1180px;
@@ -443,8 +447,16 @@ p { margin: 0; }
   .filters {
     overflow: hidden;
     overflow-anchor: none;
-    transition: max-height var(--speed) var(--ease),
-                opacity var(--speed) var(--ease);
+    transition: max-height var(--speed-collapse) var(--ease-collapse),
+                opacity var(--speed-collapse) var(--ease-collapse);
+  }
+
+  /* A small slide on the rows themselves, on top of the box collapsing. It is
+     transform-only, so it costs nothing on the compositor, and it gives the
+     movement a direction instead of the content simply being cropped away. */
+  .chips-wrap,
+  .dates {
+    transition: transform var(--speed-collapse) var(--ease-collapse);
   }
 
   :root.filters-hidden .filters {
@@ -452,7 +464,14 @@ p { margin: 0; }
     pointer-events: none;
   }
 
-  .day-head { transition: top var(--speed) var(--ease); }
+  :root.filters-hidden .chips-wrap,
+  :root.filters-hidden .dates {
+    transform: translateY(-8px);
+  }
+
+  /* Must share the collapse timing, or the day headers arrive out of step with
+     the box they are sticking beneath. */
+  .day-head { transition: top var(--speed-collapse) var(--ease-collapse); }
 }
 
 /* --- Date range ---------------------------------------------------------- */
