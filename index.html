@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en" data-theme="">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LA Events</title>
+<meta name="description" content="Upcoming events in the greater Los Angeles area.">
+<meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Set the theme before first paint so there is no flash of the wrong theme.
+  try {
+    var t = localStorage.getItem('la-events-theme');
+    if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+  } catch (e) {}
+</script>
+</head>
+<body>
+
+<!-- Icon set: outline, 1.5 stroke, one weight throughout. -->
+<svg class="icon-defs" aria-hidden="true" focusable="false">
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+  <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s7-5.686 7-11a7 7 0 1 0-14 0c0 5.314 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></symbol>
+  <symbol id="i-ticket" viewBox="0 0 24 24"><path d="M4 9V7a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v2a2.5 2.5 0 0 0 0 6v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a2.5 2.5 0 0 0 0-6Z"/><path d="M14 6v12"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5M12 16.2v.3"/></symbol>
+  <symbol id="i-empty" viewBox="0 0 24 24"><path d="M4 7h16M4 12h10M4 17h7"/></symbol>
+</svg>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <h1 class="brand-name">LA Events</h1>
+    </div>
+    <div class="header-right">
+      <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch theme">
+        <svg class="icon icon-sun" aria-hidden="true"><use href="#i-sun"/></svg>
+        <svg class="icon icon-moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="controls">
+  <div class="wrap">
+    <div class="controls-row">
+      <div class="search">
+        <svg class="icon search-icon" aria-hidden="true"><use href="#i-search"/></svg>
+        <input id="search" type="search" autocomplete="off" spellcheck="false"
+               placeholder="Search title, venue, or description" aria-label="Search events">
+        <button class="search-clear" id="search-clear" type="button" aria-label="Clear search" hidden>
+          <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+
+    <div class="dates">
+      <div class="date-presets" id="date-presets" role="group" aria-label="Date presets"></div>
+      <div class="date-fields">
+        <label class="date-field">
+          <span class="date-label">From</span>
+          <input type="date" id="from" aria-label="Events from date">
+        </label>
+        <label class="date-field">
+          <span class="date-label">To</span>
+          <input type="date" id="to" aria-label="Events to date">
+        </label>
+        <button class="date-clear" id="date-clear" type="button" disabled>Clear</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="wrap" id="main">
+  <!-- Run status: last-updated date and the recap of the most recent task run. -->
+  <section class="status" id="status" hidden>
+    <p class="status-label" id="status-label"></p>
+    <p class="status-summary" id="status-summary"></p>
+  </section>
+
+  <p class="result-count" id="result-count" role="status" aria-live="polite"></p>
+
+  <!-- Loading -->
+  <div id="skeleton" class="day-group">
+    <div class="skel-head skel"></div>
+    <div class="grid">
+      <div class="card-skel"><div class="skel skel-pill"></div><div class="skel skel-title"></div><div class="skel skel-title short"></div><div class="skel skel-line"></div><div class="skel skel-line short"></div><div class="skel skel-meta"></div></div>
+      <div class="card-skel"><div class="skel skel-pill"></div><div class="skel skel-title"></div><div class="skel skel-line"></div><div class="skel skel-line short"></div><div class="skel skel-meta"></div></div>
+      <div class="card-skel"><div class="skel skel-pill"></div><div class="skel skel-title"></div><div class="skel skel-title short"></div><div class="skel skel-line"></div><div class="skel skel-meta"></div></div>
+      <div class="card-skel"><div class="skel skel-pill"></div><div class="skel skel-title"></div><div class="skel skel-line"></div><div class="skel skel-line short"></div><div class="skel skel-meta"></div></div>
+    </div>
+  </div>
+
+  <!-- Loaded -->
+  <div id="results" hidden></div>
+
+  <!-- Empty after filtering -->
+  <div id="empty" class="state" hidden>
+    <svg class="icon state-icon" aria-hidden="true"><use href="#i-empty"/></svg>
+    <h2 class="state-title">No events match</h2>
+    <p class="state-text" id="empty-text">Nothing here fits the current filters.</p>
+    <button class="btn" id="clear-filters" type="button">Clear all filters</button>
+  </div>
+
+  <!-- Failed to load -->
+  <div id="error" class="state state-error" hidden>
+    <svg class="icon state-icon" aria-hidden="true"><use href="#i-alert"/></svg>
+    <h2 class="state-title">Couldn't load events</h2>
+    <p class="state-text" id="error-text"></p>
+    <p class="state-detail" id="error-detail"></p>
+    <button class="btn" id="retry" type="button">Try again</button>
+  </div>
+</main>
+
+<footer class="wrap site-footer">
+  <p>Events are gathered automatically. Always confirm details on the event's own page before you go.</p>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

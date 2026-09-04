@@ -1,0 +1,20 @@
+# macOS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs and scratch
+*.log
+*.bak
+*.tmp
+
+# Machine-specific Claude Code settings.
+# .claude/launch.json is shared on purpose — it is how the site is previewed.
+.claude/settings.local.json
