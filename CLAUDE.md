@@ -24,7 +24,7 @@ This is the most important rule in this repo. The two sides never cross.
 
 ## Front-end hard rules
 
-These three are permanent and non-negotiable. They apply to every change to the
+These four are permanent and non-negotiable. They apply to every change to the
 HTML, CSS, and JS, and to any rebuild of the site from scratch.
 
 **1. Cache busting.** Always fetch the data with a cache-busting query string and
@@ -51,6 +51,34 @@ object: skip it, keep rendering the rest, and say some entries were skipped.
 Pages project subpath, where a leading slash resolves to the domain root and
 breaks every link. This covers stylesheets, scripts, fetches, icons, and any
 internal link added later.
+
+**4. Version the assets.** `index.html` loads the stylesheet and the script with
+a manual cache key:
+
+```html
+<link rel="stylesheet" href="styles.css?v=2">
+<script src="app.js?v=2"></script>
+```
+
+**Bump both numbers, together, in the same commit, on every change to
+`styles.css` or `app.js`.** They must always match each other.
+
+Why it is needed: GitHub Pages serves everything with `Cache-Control:
+max-age=600`. That applies to `index.html` and to the assets alike, so within
+that ten-minute window a returning visitor can be handed freshly fetched HTML
+alongside a stylesheet or script still cached from the previous deploy. A
+mismatched pair is worse than either being merely old — during development this
+exact thing served new CSS against old JS and the page looked broken for reasons
+that were nowhere in the source. Changing the query string makes the asset a new
+URL, so a new `index.html` can only ever load the assets that shipped with it.
+
+Do not "solve" this by appending `Date.now()` to the asset URLs. That defeats
+caching entirely and re-downloads both files on every visit, which the site's own
+constraints rule out — it has to be fast on cellular. The point is a key that
+changes when the file changes, and only then.
+
+`events.json` is exempt: it has its own stronger rule 1 above, because it changes
+on a schedule of its own rather than with a deploy.
 
 ## URL parameters
 

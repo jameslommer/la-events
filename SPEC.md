@@ -118,4 +118,6 @@ as cards enter after filtering. Respect prefers-reduced-motion.
 Constraints
 
 Static site. No frameworks, no build step, no dependencies. Icons inline as
-SVG, no icon library. Fast on cellular. Relative paths only.
+SVG, no icon library. Fast on cellular. Relative paths only. The stylesheet
+and script carry a manual ?v= cache key that gets bumped whenever they
+change, so a deploy can never serve new HTML against a stale asset.
