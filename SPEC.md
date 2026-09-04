@@ -48,7 +48,7 @@ them straight back. Both are cumulative and per direction, so the jitter in
 a momentum scroll cannot make them flicker. It stays visible near the top of the page
 whatever the direction, so it never flickers while you are barely
 scrolling, and they do not hide right at the end of the list. The rows
-animate out over 280ms on a decelerating curve, slower than the 150ms used
+animate out over 700ms on a decelerating curve, slower than the 150ms used
 for hover feedback because they are a much taller element, collapsing their
 height and sliding slightly rather than only one or the other, so the
 sticky day headers move up to close the gap instead of leaving an empty

@@ -155,16 +155,21 @@ phone screen comes back. Do not give either row its own toggle or threshold.
 | `SHOW_AFTER` | `8` | px of **cumulative** upward scroll before showing again |
 | `TOP_ZONE` | `64` | always visible within this distance of the top |
 | `BOTTOM_KEEP` | `80` | never hide this close to the end of the document |
-| `COOLDOWN` | `300` | ms after a flip before another one may happen |
+| `COOLDOWN` | `220` | ms after a flip before another one may happen |
 
 Hiding is deliberately more reluctant than showing; do not make them symmetric.
 Both runs **accumulate per direction and reset the other** — a single stray pixel
 must never flip the state. Momentum scrolling and trackpads emit mixed-sign
 deltas, so an earlier version that showed the rows on any 2px upward delta
-flickered badly in real use. `COOLDOWN` then stops a second flip landing while
-the first is still animating, so it **must stay at or above
-`--speed-collapse`** — raise the animation duration without raising it and a
-flip can interrupt and restart the transition, which reads as a jerk.
+flickered badly in real use. `COOLDOWN` then stops noise flipping the state twice in a row.
+
+**`COOLDOWN` is deliberately shorter than `--speed-collapse` and must not be
+raised to match it.** Its real job is to swallow the scroll anchoring correction
+that lands a frame or two after the box resizes, which needs a couple of hundred
+milliseconds, not the whole animation. Holding it for the full 700ms would make
+scrolling up feel dead for most of a second. A genuine reversal part-way through
+is fine: CSS interpolates from the current computed value, so the movement turns
+around smoothly rather than restarting.
 
 Deltas that arrive *during* the cooldown are discarded rather than accumulated.
 Collapsing the box shortens the document and the browser's scroll anchoring
@@ -182,7 +187,7 @@ stay at 150ms for button and hover feedback. It has its own pair, because it
 moves a ~125px block rather than a button:
 
 ```css
---speed-collapse: 280ms;
+--speed-collapse: 700ms;
 --ease-collapse: cubic-bezier(0.4, 0, 0.2, 1);
 ```
 

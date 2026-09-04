@@ -686,9 +686,13 @@
   var SHOW_AFTER = 8;    // px of cumulative upward scroll before showing again
   var TOP_ZONE = 64;     // always visible within this much of the top
   var BOTTOM_KEEP = 80;  // never hide this close to the end of the document
-  var COOLDOWN = 300;    // ms after a flip before another one may happen;
-                         // must stay >= --speed-collapse or a flip can land
-                         // mid-transition and restart it, which reads as a jerk
+  /* Deliberately NOT tied to --speed-collapse. Its job is to swallow the scroll
+     anchoring correction that lands a frame or two after the box resizes, and
+     to stop noise flipping the state twice in a row. Holding it for the whole
+     700ms instead would make scrolling up feel dead for most of a second; a
+     genuine reversal mid-flight interpolates from the current value, which is
+     smooth, not a restart. */
+  var COOLDOWN = 220;    // ms after a flip before another one may happen
 
   var lastY = 0, downRun = 0, upRun = 0, lastFlip = 0;
   var ticking = false, filtersHidden = false;
