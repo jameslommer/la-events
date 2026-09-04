@@ -110,6 +110,85 @@ title or summary is actually clipped, measured from the laid-out element
 (`scrollHeight > clientHeight`) and re-measured whenever the container's width
 changes. Never render it unconditionally.
 
+## Mobile filter auto-hide, and its link to the sticky day headers
+
+Phone widths only (`@media (max-width: 639px)`; every rule that hides the filter
+rows lives inside that query, so desktop and tablet are unaffected even if the
+class is set). `app.js` toggles `filters-hidden` on `<html>` from a scroll
+listener throttled with `requestAnimationFrame` — never an unthrottled handler.
+
+**Both filter rows hide together**: the category chips (`.chips-wrap`) and the
+date range row (`.dates`) share one class and one state. Roughly 125px of a
+phone screen comes back. Do not give either row its own toggle or threshold.
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `HIDE_AFTER` | `14` | px of **cumulative** downward scroll before hiding |
+| `SHOW_AFTER` | `8` | px of **cumulative** upward scroll before showing again |
+| `TOP_ZONE` | `64` | always visible within this distance of the top |
+| `BOTTOM_KEEP` | `80` | never hide this close to the end of the document |
+| `COOLDOWN` | `220` | ms after a flip before another one may happen |
+
+Hiding is deliberately more reluctant than showing; do not make them symmetric.
+Both runs **accumulate per direction and reset the other** — a single stray pixel
+must never flip the state. Momentum scrolling and trackpads emit mixed-sign
+deltas, so an earlier version that showed the rows on any 2px upward delta
+flickered badly in real use. `COOLDOWN` then stops a second flip landing while
+the first is still animating. Lowering `SHOW_AFTER` toward zero or removing the
+cooldown brings the sputter straight back.
+`BOTTOM_KEEP` is not cosmetic: collapsing the row shortens the document, and at
+the very bottom the browser clamps the scroll position, which reads as an upward
+scroll and would oscillate. Removing that guard reintroduces the oscillation.
+
+**The filter rows and the sticky day headers are coupled. Do not decouple them.**
+The single `#filters` box collapses its `max-height` to zero rather than only
+translating, so the space it occupied actually goes away.
+
+Four things make that collapse smooth rather than sputtery. All four matter:
+
+1. **One box, not two.** Both rows live inside `#filters` and animate as a single
+   element. When they were two siblings with separate `max-height` values, they
+   started and finished at different moments and the collapse looked broken.
+2. **Exact height, no slack.** `app.js` measures the open height and writes it
+   inline (`style.maxHeight`), so the 150ms is spent entirely on visible pixels.
+   A generous round-number `max-height` wastes part of the duration animating
+   through empty space, which reads as a stutter then a jump. The inline value is
+   **cleared above the mobile breakpoint** — inline styles ignore media queries,
+   so leaving a phone-sized clamp on would crush the row on desktop.
+3. **`overflow-anchor: none`.** Collapsing the box changes layout above the
+   viewport, and scroll anchoring responds by adjusting the scroll position —
+   which this scroll handler then reads as real scrolling and reacts to. That
+   feedback loop is a sputter generator; the property breaks it.
+4. **No per-frame measuring.** `--h-stick` is written **once per toggle** from
+   cached endpoints (`stickExpanded`, `filtersH`), and `.day-head` transitions its
+   own `top` over the same 150ms so the headers glide in step. The earlier version
+   re-measured on every animation frame through the `ResizeObserver`, forcing
+   synchronous layout of the whole list mid-scroll. The observer is now skipped
+   while `animating` or hidden, and only refreshes the cached baselines when the
+   rows are open and still. The day headers stick at
+`top: var(--h-stick)`, and `--h-stick` is `.site-header` height plus `.controls`
+height, measured at runtime by `measureSticky()`. Two things keep them in step:
+
+- `setChipsHidden()` calls `measureSticky()` directly, which fixes the endpoint.
+- A `ResizeObserver` on `.controls` re-measures during the animated frames.
+
+Both are needed. Drop the direct call and the final offset can settle stale;
+drop the observer and the headers jump at the end instead of following. If a row is
+ever hidden by pure `transform` with its height left in place, the day headers
+will strand an empty band under the controls bar — which is the bug this
+arrangement exists to prevent.
+
+Under `prefers-reduced-motion: reduce` the rows are held visible and nothing
+animates; that is an early return in the scroll handler, sharing a branch with
+the non-mobile case.
+
+The filter indicator (`#filter-badge`: a dot, the active category count, and the
+active date range) lives in the **search row**, not the header — the header stays
+site name and theme toggle, per the section below. It exists so a filtered list
+still shows evidence of its filter while the rows are hidden, so it must cover
+**every** filter those rows can hold. Add a filter to either row and the badge
+has to learn about it, or hiding the row makes that filter invisible.
+
 ## Where the run status is shown
 
 The header is the site name and the theme toggle, nothing more. The last-updated

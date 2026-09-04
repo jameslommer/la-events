@@ -333,10 +333,43 @@ p { margin: 0; }
 }
 .search-clear:hover { color: var(--text); background: var(--accent-soft, var(--skel-1)); }
 
+.chips-wrap { margin-top: 10px; }
+
+.filter-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 12px;
+  background: var(--chip-bg);
+  border: 1px solid var(--chip-border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  max-width: 42%;
+  overflow: hidden;
+}
+
+.filter-badge .filter-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filter-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-image: linear-gradient(135deg, var(--new-from), var(--new-to));
+}
+
 .chips {
   display: flex;
   gap: 7px;
-  margin-top: 10px;
   overflow-x: auto;
   scrollbar-width: none;
   padding-bottom: 2px;
@@ -391,6 +424,36 @@ p { margin: 0; }
 }
 
 .chip-empty { opacity: 0.42; }
+
+/* --- Mobile only: the filter rows hide on scroll down, return on scroll up ---
+   Four things keep this smooth; see CLAUDE.md before touching any of them.
+   1. Both rows live in ONE #filters box, so they cannot animate out of sync.
+   2. Its max-height is set inline to the exact measured height, so there is no
+      slack to burn through before the movement becomes visible.
+   3. overflow-anchor: none stops the browser adjusting scroll position when the
+      box collapses, which otherwise reads as scrolling and re-triggers this.
+   4. .day-head transitions its own sticky offset, so app.js writes --h-stick
+      once per toggle instead of measuring on every animation frame. */
+
+@media (max-width: 639px) {
+  /* max-height itself is written inline by app.js as an exact pixel value —
+     the open height when shown, 0 when hidden — so there is never any slack to
+     burn through before the movement is visible. Only mobile gets that inline
+     value; app.js clears it above this breakpoint. */
+  .filters {
+    overflow: hidden;
+    overflow-anchor: none;
+    transition: max-height var(--speed) var(--ease),
+                opacity var(--speed) var(--ease);
+  }
+
+  :root.filters-hidden .filters {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .day-head { transition: top var(--speed) var(--ease); }
+}
 
 /* --- Date range ---------------------------------------------------------- */
 

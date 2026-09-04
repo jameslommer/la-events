@@ -56,21 +56,30 @@
           <svg class="icon" aria-hidden="true"><use href="#i-x"/></svg>
         </button>
       </div>
+      <!-- Stays put when the chip row hides on mobile, so an active filter is
+           never invisible. -->
+      <span class="filter-badge" id="filter-badge" hidden></span>
     </div>
-    <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+    <!-- Both filter rows collapse as ONE element so they cannot drift out of
+         sync with each other. See CLAUDE.md. -->
+    <div class="filters" id="filters">
+      <div class="chips-wrap" id="chips-wrap">
+        <div class="chips" id="chips" role="group" aria-label="Filter by category"></div>
+      </div>
 
-    <div class="dates">
-      <div class="date-presets" id="date-presets" role="group" aria-label="Date presets"></div>
-      <div class="date-fields">
-        <label class="date-field">
-          <span class="date-label">From</span>
-          <input type="date" id="from" aria-label="Events from date">
-        </label>
-        <label class="date-field">
-          <span class="date-label">To</span>
-          <input type="date" id="to" aria-label="Events to date">
-        </label>
-        <button class="date-clear" id="date-clear" type="button" disabled>Clear</button>
+      <div class="dates">
+        <div class="date-presets" id="date-presets" role="group" aria-label="Date presets"></div>
+        <div class="date-fields">
+          <label class="date-field">
+            <span class="date-label">From</span>
+            <input type="date" id="from" aria-label="Events from date">
+          </label>
+          <label class="date-field">
+            <span class="date-label">To</span>
+            <input type="date" id="to" aria-label="Events to date">
+          </label>
+          <button class="date-clear" id="date-clear" type="button" disabled>Clear</button>
+        </div>
       </div>
     </div>
   </div>

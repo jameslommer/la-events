@@ -25,6 +25,7 @@
     status: $('status'), statusLabel: $('status-label'), statusSummary: $('status-summary'),
     searchClear: $('search-clear'), chips: $('chips'),
     presets: $('date-presets'), from: $('from'), to: $('to'), dateClear: $('date-clear'),
+    filterBadge: $('filter-badge'), chipsWrap: $('chips-wrap'), filters: $('filters'),
     count: $('result-count'), skeleton: $('skeleton'), results: $('results'),
     empty: $('empty'), emptyText: $('empty-text'), clearFilters: $('clear-filters'),
     error: $('error'), errorText: $('error-text'), errorDetail: $('error-detail'),
@@ -566,7 +567,32 @@
     commit();
   }
 
+  /* Survives the chip row hiding on mobile, so a filtered list never looks
+     unfiltered. Shown at every width; on desktop it simply corroborates the
+     chips, which are always visible there. */
+  function renderFilterBadge() {
+    var n = state.cats.length;
+    var range = rangeLabel();
+    els.filterBadge.hidden = !n && !range;
+    if (els.filterBadge.hidden) return;
+
+    var parts = [];
+    if (n) parts.push(String(n));
+    if (range) parts.push(range);
+    els.filterBadge.replaceChildren(
+      el('span', 'filter-dot'),
+      el('span', 'filter-text', parts.join(' · '))
+    );
+
+    var spoken = [];
+    if (n) spoken.push(n + ' category filter' + (n === 1 ? '' : 's') + ': ' + state.cats.join(', '));
+    if (range) spoken.push('dates ' + range);
+    els.filterBadge.setAttribute('aria-label', spoken.join('; ') + ' active');
+    els.filterBadge.title = spoken.join('; ');
+  }
+
   function renderChipCounts() {
+    renderFilterBadge();
     var counts = {};
     data.events.forEach(function (e) { counts[e.category] = (counts[e.category] || 0) + 1; });
     Array.prototype.forEach.call(els.chips.children, function (b) {
@@ -610,15 +636,133 @@
      The day headers stick below the header and the controls bar. Those two
      change height with the viewport, so measure rather than hard-code. */
 
-  function measureSticky() {
+  var stickExpanded = 0, filtersH = 0, animating = false;
+
+  function measureLayout() {
     var header = document.querySelector('.site-header');
     var controls = document.querySelector('.controls');
     if (!header || !controls) return;
+
     var h = Math.round(header.getBoundingClientRect().height);
-    var c = Math.round(controls.getBoundingClientRect().height);
-    var root = document.documentElement.style;
-    root.setProperty('--h-header', h + 'px');
-    root.setProperty('--h-stick', (h + c) + 'px');
+    document.documentElement.style.setProperty('--h-header', h + 'px');
+
+    /* Baselines are only meaningful while the filters are open and still.
+       Measuring mid-collapse would cache a half-animated height. */
+    if (!filtersHidden && !animating && els.filters) {
+      els.filters.style.maxHeight = '';                  // measure it unclamped
+      filtersH = Math.round(els.filters.getBoundingClientRect().height);
+      stickExpanded = h + Math.round(controls.getBoundingClientRect().height);
+      applyFiltersHeight();
+    }
+    applyStick();
+  }
+
+  /* Inline, because an inline value beats the class rule and needs no custom
+     property indirection. Cleared above the mobile breakpoint so a wider layout
+     is never clamped by a phone-sized measurement. */
+  function applyFiltersHeight() {
+    if (!els.filters) return;
+    if (!mqMobile.matches) { els.filters.style.maxHeight = ''; return; }
+    els.filters.style.maxHeight = filtersHidden ? '0px' : filtersH + 'px';
+  }
+
+  /* One write per toggle. .day-head transitions its own top, so the day headers
+     glide with the collapse without any per-frame work here. */
+  function applyStick() {
+    var v = filtersHidden ? Math.max(stickExpanded - filtersH, 0) : stickExpanded;
+    document.documentElement.style.setProperty('--h-stick', v + 'px');
+  }
+
+  var measureSticky = measureLayout;   // other call sites still use this name
+
+  /* --- Mobile: auto-hiding filter rows ----------------------------------
+     Both the category chips and the date range row hide together. Thresholds
+     live here and are documented in CLAUDE.md. Hiding is reluctant (needs
+     cumulative downward movement); showing is near-instant. The class goes on
+     <html>; the CSS that acts on it is inside a mobile media query, so desktop
+     and tablet are untouched even if the class is ever set. */
+
+  var HIDE_AFTER = 14;   // px of cumulative downward scroll before hiding
+  var SHOW_AFTER = 8;    // px of cumulative upward scroll before showing again
+  var TOP_ZONE = 64;     // always visible within this much of the top
+  var BOTTOM_KEEP = 80;  // never hide this close to the end of the document
+  var COOLDOWN = 220;    // ms after a flip before another one may happen
+
+  var lastY = 0, downRun = 0, upRun = 0, lastFlip = 0;
+  var ticking = false, filtersHidden = false;
+  var mqMobile = window.matchMedia('(max-width: 639px)');
+  var mqStill = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var animTimer = null;
+
+  function setFiltersHidden(hide) {
+    if (hide === filtersHidden) return;
+    if (!filtersHidden && !animating) measureLayout();   // refresh baselines first
+    filtersHidden = hide;
+    lastFlip = Date.now();
+    animating = true;
+    document.documentElement.classList.toggle('filters-hidden', hide);
+    applyFiltersHeight();
+    applyStick();                                        // one write, no re-measure
+    clearTimeout(animTimer);
+    animTimer = setTimeout(function () { animating = false; }, COOLDOWN);
+  }
+
+  function onScrollFrame() {
+    ticking = false;
+    // Reduced motion, or not a phone: the chips simply stay put.
+    if (mqStill.matches || !mqMobile.matches) { setFiltersHidden(false); return; }
+
+    var y = window.pageYOffset || document.documentElement.scrollTop || 0;
+    var dy = y - lastY;
+    lastY = y;
+    if (dy === 0) return;
+
+    /* Accumulate per direction, resetting the other. Momentum scrolling and
+       trackpads emit mixed-sign deltas, and reacting to a single stray pixel is
+       what made this flicker. */
+    if (dy > 0) { downRun += dy; upRun = 0; }
+    else { upRun -= dy; downRun = 0; }
+
+    if (y <= TOP_ZONE) { downRun = 0; setFiltersHidden(false); return; }
+
+    // No flip while the previous one is still animating.
+    if (Date.now() - lastFlip < COOLDOWN) return;
+
+    if (upRun >= SHOW_AFTER) { setFiltersHidden(false); return; }
+    if (downRun < HIDE_AFTER) return;
+
+    /* Collapsing shortens the document. Doing that at the very bottom makes the
+       browser clamp the scroll position, which reads as an upward scroll and
+       would oscillate, so leave it alone down there. */
+    var max = document.documentElement.scrollHeight - window.innerHeight;
+    if (y > max - BOTTOM_KEEP) return;
+
+    setFiltersHidden(true);
+  }
+
+  function onScroll() {
+    if (ticking) return;          // rAF throttle: at most one update per frame
+    ticking = true;
+    requestAnimationFrame(onScrollFrame);
+  }
+
+  function initFilterAutoHide() {
+    lastY = window.pageYOffset || 0;
+    window.addEventListener('scroll', onScroll, { passive: true });
+    var onModeChange = function () {
+      downRun = upRun = 0;
+      setFiltersHidden(false);      // leaving mobile, or motion turned off
+      applyFiltersHeight();         // drop the phone-sized clamp on wider screens
+      measureSticky();
+    };
+    if (mqMobile.addEventListener) {
+      mqMobile.addEventListener('change', onModeChange);
+      mqStill.addEventListener('change', onModeChange);
+    } else if (mqMobile.addListener) {
+      mqMobile.addListener(onModeChange);
+      mqStill.addListener(onModeChange);
+    }
   }
 
   /* --- Theme ------------------------------------------------------------ */
@@ -645,12 +789,19 @@
   }
 
   function init() {
+    /* Re-measure on genuine layout changes only. While the filters are
+       collapsing the controls box changes size every frame, and re-measuring
+       there would both cache junk and thrash layout mid-scroll. */
+    var onBoxResize = function () {
+      if (animating || filtersHidden) return;
+      measureLayout();
+    };
     if (window.ResizeObserver) {
-      var ro = new ResizeObserver(measureSticky);
+      var ro = new ResizeObserver(onBoxResize);
       ro.observe(document.querySelector('.site-header'));
       ro.observe(document.querySelector('.controls'));
     } else {
-      window.addEventListener('resize', measureSticky);
+      window.addEventListener('resize', onBoxResize);
     }
 
     /* What counts as clipped depends on the laid-out width, which changes with
@@ -715,6 +866,8 @@
       commit();
     });
     els.retry.addEventListener('click', load);
+
+    initFilterAutoHide();
 
     window.addEventListener('popstate', function () {
       readURL();

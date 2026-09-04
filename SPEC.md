@@ -40,6 +40,27 @@ control at the bottom of the card expands that card in place to reveal the
 full text, pushing the cards below it down. "less" collapses it again. No
 modal.
 
+On mobile only, at phone widths, both filter rows, the category chips and
+the date range picker, hide themselves together as you scroll down to
+reclaim vertical space, and come back the moment you scroll up. Hiding is reluctant and showing is eager: it takes about 14px
+of cumulative downward movement to hide, while about 8px upward brings
+them straight back. Both are cumulative and per direction, so the jitter in
+a momentum scroll cannot make them flicker. It stays visible near the top of the page
+whatever the direction, so it never flickers while you are barely
+scrolling, and they do not hide right at the end of the list. The rows
+animate out at the same 150ms used elsewhere, collapsing their height
+rather than only sliding, so the sticky day headers move up to close the
+gap instead of leaving an empty band. Together they give back about 125px
+of a phone screen. Under prefers-reduced-motion the rows simply stay
+visible and nothing animates. Desktop and tablet are unaffected: both rows
+are always visible there.
+
+Because both filter rows can be hidden, a small filter indicator sits in
+the search row: a dot, the number of active categories, and the active
+date range. It appears only when at least one category filter or a date
+range is set, and it stays put regardless of the filter rows, so scrolling
+a filtered list never loses all trace of the filter.
+
 Header: site name and theme toggle. Nothing else.
 
 Status card: above the event list, before the first day header. Two parts,
